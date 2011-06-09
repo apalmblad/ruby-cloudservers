@@ -35,7 +35,9 @@ module CloudServers
   $:.unshift(File.dirname(__FILE__))
   require 'cloudservers/version'
   require 'cloudservers/authentication'
+  require 'cloudservers/asynchronous_job'
   require 'cloudservers/connection'
+  require 'cloudservers/dns'
   require 'cloudservers/server'
   require 'cloudservers/image'
   require 'cloudservers/flavor'

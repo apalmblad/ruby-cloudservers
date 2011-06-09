@@ -21,8 +21,10 @@ Gem::Specification.new do |s|
     "TODO",
     "cloudservers.gemspec",
     "lib/cloudservers.rb",
+    "lib/cloudservers/asynchronous_job.rb",
     "lib/cloudservers/authentication.rb",
     "lib/cloudservers/connection.rb",
+    "lib/cloudservers/dns.rb",
     "lib/cloudservers/entity_manager.rb",
     "lib/cloudservers/exception.rb",
     "lib/cloudservers/flavor.rb",
@@ -47,18 +49,21 @@ Gem::Specification.new do |s|
     "test/cloudservers_servers_test.rb",
     "test/test_helper.rb"
   ]
-
+  json_req_args = [%q<json>, [">= 0"]]
+  xml_req_args = ['nokogiri', ['>= 0'] ]
   if s.respond_to? :specification_version then
     current_version = Gem::Specification::CURRENT_SPECIFICATION_VERSION
     s.specification_version = 3
-
     if Gem::Version.new(Gem::VERSION) >= Gem::Version.new('1.2.0') then
-      s.add_runtime_dependency(%q<json>, [">= 0"])
+      s.add_runtime_dependency( *json_req_args )
+      s.add_runtime_dependency( *xml_req_args)
     else
-      s.add_dependency(%q<json>, [">= 0"])
+      s.add_dependency( *json_req_args )
+      s.add_dependency( *xml_req_args)
     end
   else
-    s.add_dependency(%q<json>, [">= 0"])
+    s.add_dependency( *json_req_args)
+    s.add_dependency( *xml_req_args)
   end
 end
 

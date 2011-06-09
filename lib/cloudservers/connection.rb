@@ -99,6 +99,9 @@ module CloudServers
     def get_server(id)
       CloudServers::Server.new(self,id)
     end
+    def dns
+      CloudServers::Dns.new( self )
+    end
     alias :server :get_server
     
     # Returns an array of hashes, one for each server that exists under this account.  The hash keys are :name and :id.
