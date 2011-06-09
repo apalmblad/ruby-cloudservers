@@ -1,4 +1,4 @@
-require 'lib/cloudservers/version'
+require './lib/cloudservers/version'
 
 Gem::Specification.new do |s|
   s.name = %q{cloudservers}
