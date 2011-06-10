@@ -92,8 +92,10 @@ private
   def parse_domains_json( json )
     result = JSON.parse( json )
     r_val = []
-    result['domains']['domain'].each do |d|
-      r_val << Domain.new( @connection, d['id'].to_i, d['name'] )
+    if result['domains']
+      result['domains']['domain'].each do |d|
+        r_val << Domain.new( @connection, d['id'].to_i, d['name'] )
+      end
     end
     return r_val
   end
