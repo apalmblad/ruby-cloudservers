@@ -37,6 +37,12 @@ class CloudServers::Dns
 
   class Domain
     attr_reader :name, :id
+
+    def self.find( connection, id )
+      obj = new( connection, id )
+      obj.details
+      obj
+    end
     
     def initialize( conn, id, name = nil, details = nil )
       @connection=  conn
