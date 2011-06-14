@@ -48,7 +48,7 @@ class CloudServers::Dns
     def self.details_method( *args )
       args.each do |m|
         define_method m do
-          details[m]
+          details[m.to_s]
         end
       end
     end
