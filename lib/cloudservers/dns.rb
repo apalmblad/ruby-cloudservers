@@ -58,7 +58,7 @@ class CloudServers::Dns
         end
       end
     end
-    details_method( :emailAddress, :nameservers, :records )
+    details_method( :emailAddress, :nameservers, :recordsList )
 
 
     def details
@@ -66,9 +66,9 @@ class CloudServers::Dns
         r = @connection.csreq( 'GET', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}.json", @connection.svrmgmtport, @connection.svrmgmtscheme )
         if r.code =~ /^20.$/
           data =  JSON.parse( r.body )
-          @name ||= data['Domain']['name']
-          @id ||= data['Domain']['id']
-          data['Domain']
+          @name ||= data['name']
+          @id ||= data['id']
+          data
         else
           raise CloudServers::Exception.raise_exception(r)
         end
@@ -118,7 +118,7 @@ private
     xml = Nokogiri::XML::Builder.new do |doc|
       doc.domains( :xmlns => "http://docs.rackspacecloud.com/dns/api/v1.0" ) {
           doc.domain( :name => domain, :emailAddress => email ) {
-            doc.records {
+            doc.recordsList {
               records.each { |r| doc.record( r ) }
             }
          }
