@@ -8,7 +8,8 @@ class CloudServers::AsynchronousJob
 
   def self.from_json( conn, json )
     data = JSON.parse( json )
-    result = data['asyncResponse']
+    #result = data['asyncResponse']
+    result = data
     new( conn, result['jobId'], result['callbackUrl'] )
   end
 

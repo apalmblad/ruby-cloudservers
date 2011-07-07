@@ -11,7 +11,7 @@ class CloudServers::Dns
     r = @connection.csreq( 'POST', API_SERVER, "#{@connection.svrmgmtpath}/domains.json", @connection.svrmgmtport, @connection.svrmgmtscheme, { 'content-type' => 'application/xml' }, data )
     if r.code.to_i == 202
       result = JSON.parse( r.body )
-      CloudServers::AsynchronousJob.new( @connection, result['asyncResponse']['jobId'], result['asyncResponse']['callbackUrl'] )
+      CloudServers::AsynchronousJob.new( @connection, result['jobId'], result['callbackUrl'] )
     else
       CloudServers::Exception.raise_exception(r)
     end
@@ -99,7 +99,7 @@ private
     result = JSON.parse( json )
     r_val = []
     if result['domains']
-      result['domains']['domain'].each do |d|
+      result['domains'].each do |d|
         r_val << Domain.new( @connection, d['id'].to_i, d['name'] )
       end
     end
