@@ -69,6 +69,8 @@ class CloudServers::Dns
           @name ||= data['name']
           @id ||= data['id']
           data
+        elsif r.code == 404
+          raise CloudServers::Exception::ItemNotFound( "Domain was not found.", r.code, r.body )
         else
           raise CloudServers::Exception.raise_exception(r)
         end
