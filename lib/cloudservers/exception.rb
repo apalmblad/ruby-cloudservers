@@ -71,8 +71,8 @@ module CloudServers
         fault = nil
         info = nil
         JSON.parse(response.body).each_pair do |key, val|
-            fault=key
-            info=val
+          fault=key
+          info=val
         end
         exception_class = self.const_get(fault[0,1].capitalize+fault[1,fault.length])
         raise exception_class.new(info["message"], response.code, response.body)
