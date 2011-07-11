@@ -75,7 +75,13 @@ module CloudServers
           info=val
         end
         exception_class = self.const_get(fault[0,1].capitalize+fault[1,fault.length])
-        raise exception_class.new(info["message"], response.code, response.body)
+        e = nil
+        begin
+          e = exception_class.new(info["message"], response.code, response.body)
+        rescue Exception => e
+          raise CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
+        end
+        raise e
       rescue NameError
         raise CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
       end
