@@ -42,6 +42,8 @@ module CloudServers
     end
     class Other                       < CloudServersError # :nodoc:
     end
+    class JobFailure              < CloudServersError # :nodoc:
+    end
     
     # Plus some others that we define here
     

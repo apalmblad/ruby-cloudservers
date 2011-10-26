@@ -98,7 +98,8 @@ private
 ################################################################################
 
   def parse_domains_json( json )
-    result = JSON.parse( json )
+    result = JSON.parse( json ) if json.is_a?( String )
+    result = result['response'] if result['response']
     r_val = []
     if result['domains']
       result['domains'].each do |d|
