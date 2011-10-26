@@ -78,8 +78,8 @@ module CloudServers
         e = nil
         begin
           e = exception_class.new(info["message"], response.code, response.body)
-        rescue Exception => e
-          raise CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
+        rescue
+          e = CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
         end
         raise e
       rescue NameError
