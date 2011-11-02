@@ -21,6 +21,16 @@ class CloudServers::AsynchronousJob
     end
     return @successful 
   end
+  def wait_for_results( sleep_time = 1 )
+    while !done?
+      sleep( sleep_time )
+    end
+    if j.successful?
+      return JSON.parse( last_response.response.body )
+    else
+      CloudServers::Exception.raise_exception( last_response )
+    end
+  end
 
   def done?
     r = @connection.csreq( 'GET', @call_back.host, @call_back.path + ".json", @call_back.port, @call_back.scheme )
