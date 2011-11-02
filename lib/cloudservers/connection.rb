@@ -66,6 +66,22 @@ module CloudServers
     def authok?
       @authok
     end
+
+    def handle_results( results, &success_block )
+      if results.code.to_i == 200
+        yield if block_given?
+        return JSON.parse( results.body )
+      elsif results.code.to_i == 202
+        yield if block_given?
+        return CloudServers::AsynchronousJob.from_json( self, results.body )
+      elsif results.code.to_i == 204
+        yield if block_given?
+      elsif results.code.to_i == 404
+        raise CloudServers::Exception::ItemNotFound.new( "Domain was not found.", results.code, results.body )
+      else
+        CloudServers::Exception.raise_exception( results )
+      end
+    end
     
     # This method actually makes the HTTP REST calls out to the server
     def csreq(method,server,path,port,scheme,headers = {},data = nil,attempts = 0) # :nodoc:
