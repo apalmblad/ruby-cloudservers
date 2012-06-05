@@ -25,7 +25,7 @@ class CloudServers::AsynchronousJob
     while !done?
       sleep( sleep_time )
     end
-    if j.successful?
+    if successful?
       return JSON.parse( last_response.response.body )
     else
       CloudServers::Exception.raise_exception( last_response )
@@ -33,7 +33,7 @@ class CloudServers::AsynchronousJob
   end
 
   def done?
-    r = @connection.csreq( 'GET', @call_back.host, @call_back.path + ".json", @call_back.port, @call_back.scheme )
+    r = @connection.csreq( 'GET', @call_back.host, @call_back.path, @call_back.port, @call_back.scheme, { 'content-type' => 'application/json' } )
     if r.code.to_i == 202
       @last_response = r
       return false
