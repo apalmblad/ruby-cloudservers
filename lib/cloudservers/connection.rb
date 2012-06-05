@@ -78,6 +78,10 @@ module CloudServers
         yield if block_given?
       elsif results.code.to_i == 404
         raise CloudServers::Exception::ItemNotFound.new( "Domain was not found.", results.code, results.body )
+      elsif results.code.to_i == 400
+        d = JSON.parse( results.body )
+        error = d['validationErrors']['messages'].join(',')
+        raise CloudServers::Exception::BadRequest.new( error, results.code, results.body )
       else
         CloudServers::Exception.raise_exception( results )
       end
