@@ -162,6 +162,23 @@ module CloudServers
     #   >> cs.list_servers(:limit => 2, :offset => 3)
     #   => [{:name=>"demo-standingcloud-lts", :id=>168867}, 
     #       {:name=>"demo-aicache1", :id=>187853}]
+    #
+    # ------------------------------------------------------ load_balancer_paths
+    def load_balancer_paths( requested_region = nil )
+      requested_region ||= region
+      r_val = []
+      service_catalog['cloudLoadBalancers'].each do |lb|
+        if requested_region.nil? || requested_region == lb['region']
+          u = URI.parse( lb['publicURL'] )
+          r_val << u
+          if block_given?
+            yield u, lb['region']
+          end
+        end
+      end
+      return r_val
+    end
+    # ------------------------------------------------------------- list_servers
     def list_servers(options = {})
       anti_cache_param="cacheid=#{Time.now.to_i}"
       path = CloudServers.paginate(options).empty? ? "#{svrmgmtpath}/servers?#{anti_cache_param}" : "#{svrmgmtpath}/servers?#{CloudServers.paginate(options)}&#{anti_cache_param}"
