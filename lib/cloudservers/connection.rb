@@ -114,12 +114,16 @@ module CloudServers
     # This method actually makes the HTTP REST calls out to the server
     def csreq(method,server,path,port,scheme,headers = {},data = nil,attempts = 0) # :nodoc:
       start = Time.now
+      headers['Content-Type'] ||= 'application/json'
       hdrhash = headerprep(headers)
       start_http(server,path,port,scheme,hdrhash)
       request = Net::HTTP.const_get(method.to_s.capitalize).new(path,hdrhash)
       request.body = data
       response = @http[server].request(request)
       raise CloudServers::Exception::ExpiredAuthToken if response.code == "401"
+      raise CloudServers::Exception::CloudServersFault.new( "Server fault!", response.code, response.body ) if response.code == "500"
+      raise CloudServers::Exception::ServiceUnavailable.new( "Service Unavailable", response.code, response.body ) if response.code == "503"
+      raise CloudServers::Exception::OverLimit.new( "Service Unavailable", response.code, response.body ) if response.code == "413"
       response
     rescue Errno::EPIPE, Timeout::Error, Errno::EINVAL, EOFError
       # Server closed the connection, retry
