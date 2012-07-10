@@ -16,6 +16,14 @@ module CloudServers
     attr_reader   :proxy_host
     attr_reader   :proxy_port
     attr_accessor :region
+    @@last_connection = nil
+    def self.last_connection
+      @@last_connection
+    end
+    def self.last_connection=( c )
+      @@last_connection = c
+    end
+
     def auth_user
       authuser
     end
@@ -65,6 +73,14 @@ module CloudServers
       @authok = false
       @http = {}
       CloudServers::Authentication.new( self )
+      self.class.last_connection = self
+    end
+    # --------------------------------------------------------- find_connection!
+    def self.find_connection!
+      unless last_connection
+        raise "No connection established!"
+      end
+      last_connection
     end
     
     # Returns true if the authentication was successful and returns false otherwise.
