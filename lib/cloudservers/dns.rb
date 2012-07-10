@@ -12,7 +12,6 @@ class CloudServers::Dns
     @connection.handle_results( r )
   end
 
-
   def find_domains( name )
     r = @connection.csreq( 'GET', API_SERVER, "#{@connection.svrmgmtpath}/domains.json?name=#{URI.encode(name)}", @connection.svrmgmtport, @connection.svrmgmtscheme )
     result = @connection.handle_results( r )
@@ -130,8 +129,11 @@ class CloudServers::Dns
     def add_record!( record )
       r = @connection.csreq( 'POST', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}/records", @connection.svrmgmtport, @connection.svrmgmtscheme,
           { 'content-type' => 'application/json' }, JSON.generate( { 'records' => [record] } ) )
-      @connection.handle_results( r ) do
+      result = @connection.handle_results( r ) do
         records << record
+      end
+      if result.is_a?( CloudServers::AsynchronousJob )
+        result = result.wait_for_results
       end
     end
     # ----------------------------------------------------------- remove_record!
