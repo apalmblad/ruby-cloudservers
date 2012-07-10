@@ -17,7 +17,7 @@
 
 module CloudServers
 
-  AUTH_USA = "https://auth.api.rackspacecloud.com"
+  AUTH_USA = "https://identity.api.rackspacecloud.com"
   AUTH_UK = "https://lon.auth.api.rackspacecloud.com"
 
   require 'net/http'

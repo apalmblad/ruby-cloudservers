@@ -8,8 +8,7 @@ module CloudServers
     #
     # Should probably never be called directly.
     def initialize(connection)
-      path = '/v1.0'
-      hdrhash = { "X-Auth-User" => connection.authuser, "X-Auth-Key" => connection.authkey }
+      path = '/v1.1/auth'
       begin
         server = Net::HTTP::Proxy(connection.proxy_host, connection.proxy_port).new(connection.auth_host,connection.auth_port)
         if connection.auth_scheme == "https"
@@ -20,15 +19,17 @@ module CloudServers
       rescue
         raise CloudServers::Exception::Connection, "Unable to connect to #{server}"
       end
-      response = server.get(path,hdrhash)
+
+      request = Net::HTTP::Post.new( path, { 'Content-Type' => 'application/json' } )
+      request.body = {"credentials" => { "username" => connection.auth_user, "key" => connection.auth_key }}.to_json
+
+      response = server.request( request )
+                                   
       if (response.code =~ /^20./)
-        connection.authtoken = response["x-auth-token"]
-        connection.svrmgmthost = URI.parse(response["x-server-management-url"]).host
-        connection.svrmgmtpath = URI.parse(response["x-server-management-url"]).path
-        # Force the path into the v1.0 URL space
-        connection.svrmgmtpath.sub!(/\/.*?\//, '/v1.0/')
-        connection.svrmgmtport = URI.parse(response["x-server-management-url"]).port
-        connection.svrmgmtscheme = URI.parse(response["x-server-management-url"]).scheme
+        body = JSON.parse( response.body )
+        token = body['auth']['token']
+        connection.authtoken = token['id']
+        connection.service_catalog = body['auth']['serviceCatalog']
         connection.authok = true
       else
         connection.authtoken = false

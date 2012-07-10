@@ -1,5 +1,6 @@
 module CloudServers
   class Connection
+    attr_accessor :service_catalog
     
     attr_reader   :authuser
     attr_reader   :authkey
@@ -14,6 +15,13 @@ module CloudServers
     attr_reader   :auth_scheme
     attr_reader   :proxy_host
     attr_reader   :proxy_port
+    attr_accessor :region
+    def auth_user
+      authuser
+    end
+    def auth_key
+      authkey
+    end
     
     # Creates a new CloudServers::Connection object.  Uses CloudServers::Authentication to perform the login for the connection.
     #
@@ -56,7 +64,7 @@ module CloudServers
       @proxy_port = options[:proxy_port]
       @authok = false
       @http = {}
-      CloudServers::Authentication.new(self)
+      CloudServers::Authentication.new( self )
     end
     
     # Returns true if the authentication was successful and returns false otherwise.
@@ -141,6 +149,7 @@ module CloudServers
       CloudServers::Exception.raise_exception(response) unless response.code.match(/^20.$/)
       CloudServers.symbolize_keys(JSON.parse(response.body)["servers"])
     end
+
     alias :servers :list_servers
     
     # Returns an array of hashes with more details about each server that exists under this account.  Additional information
