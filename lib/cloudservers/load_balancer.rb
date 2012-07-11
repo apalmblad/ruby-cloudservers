@@ -31,7 +31,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     path = @connection.load_balancer_paths( region ).first
     r = @connection.csreq( request_method, path.host, "#{path.path}#{path_part}", path.port, path.scheme, headers, data )
     unless r.code =~ /20\d/
-      CloudServers::Exception.raise_exception( response ) 
+      CloudServers::Exception.raise_exception( r )
     end
     return r
   end
