@@ -77,7 +77,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
           load_balancers << l
         end
       else
-        CloudServers::Exception.raise_exception( response ) 
+        CloudServers::Exception.raise_exception( r ) 
       end
     end
     return load_balancers
