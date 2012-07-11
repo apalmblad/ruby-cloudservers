@@ -155,7 +155,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
       if r.code =~ /20\d/
         return true
       else
-        CloudServers::Exception.raise_exception( response ) 
+        CloudServers::Exception.raise_exception( r ) 
       end
 
     end
