@@ -111,6 +111,33 @@ module CloudServers
         CloudServers::Exception.raise_exception( results )
       end
     end
+    # -------------------------------------------------------- paginated_request
+    def paginated_request( url, headers = {}, data = nil, attempts = 0 )
+      r = csreq( 'GET', url.host, "#{url.path}?#{url.query}", url.port, url.scheme, headers, data, attempts )
+      unless r.code == 200
+        results = JSON.parse( r.body )
+        if results['links'] && next_link = results['links'].find{ |x| x['rel'] == 'next' }
+          u = URI.parse( next_link['href'] )
+          results = merge_paginated_results( results, paginated_request( u, headers, data, attempts ) )
+        end
+        results
+      else
+        CloudServers::Exception.raise_exception( r )
+      end
+    end
+    PAGINATION_KEYS = %w( links totalEntries )
+    # -------------------------------------------------- merge_paginated_results
+    def merge_paginated_results( r1, r2 )
+      PAGINATION_KEYS.each { |k| r1.delete( k ); r2.delete( k ) }
+      result = {}
+      r1.keys.each do |k|
+        result[k] = ( r1[k] + r2.delete( k ) )
+      end
+      r2.keys.each do |k|
+        result[k] = r2[k]
+      end
+      return result
+    end
     
     # This method actually makes the HTTP REST calls out to the server
     def csreq(method,server,path,port,scheme,headers = {},data = nil,attempts = 0) # :nodoc:
