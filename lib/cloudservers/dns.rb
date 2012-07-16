@@ -1,45 +1,79 @@
 class CloudServers::Dns
   require 'nokogiri'
-  API_SERVER = 'dns.api.rackspacecloud.com'
   def initialize( connection )
     @connection = connection
   end
 
   def create_record( domain, email, records, ttl = 300 )
-    data = build_xml( domain, records, email, ttl )
-    validate_records( records )
-    r = @connection.csreq( 'POST', API_SERVER, "#{@connection.svrmgmtpath}/domains.json", @connection.svrmgmtport, @connection.svrmgmtscheme, { 'content-type' => 'application/xml' }, data )
-    @connection.handle_results( r )
+    d = Domain.new( @connection, nil, domain )
+    records.each do |r|
+      d.add_record( r )
+    end
+    d.email_address = email
+    d.ttl = 300
+    d.create
+    return d
   end
 
   def find_domains( name )
-    r = @connection.csreq( 'GET', API_SERVER, "#{@connection.svrmgmtpath}/domains.json?name=#{URI.encode(name)}", @connection.svrmgmtport, @connection.svrmgmtscheme )
-    result = @connection.handle_results( r )
-    if result.is_a?( CloudServers::AsynchronousJob )
-      result = result.wait_for_results
-    end
-    return parse_domains_json( result )
+    Domain.find_all_by_name( name, @connection )
   end
 
   def domains
-    r = @connection.csreq( 'GET', API_SERVER, "#{@connection.svrmgmtpath}/domains.json", @connection.svrmgmtport, @connection.svrmgmtscheme )
-    result = @connection.handle_results( r )
-    if result.is_a?( CloudServers::AsynchronousJob )
-      result = wait_for_results
-    end
-    return parse_domains_json( result )
+    Domain.list( @connection )
   end
 
 
   class Domain
     attr_reader :name, :id
     attr_writer :email_address
+    attr_accessor :ttl
 
     # --------------------------------------------------------------------- find
     def self.find( connection, id )
       obj = new( connection, id )
       obj.details
       obj
+    end
+    # --------------------------------------------------------- find_all_by_name
+    def self.find_all_by_name( name, connection = nil )
+      connection ||= CloudServers::Connection.find_connection!
+      domains = []
+      connection.dns_paths do |path|
+        if path.query
+          path.query = [path.query, "name=#{URI.escape(name)}" ].join('&')
+        else
+          path.query = "name=#{URI.escape(name )}"
+        end
+        path.path += '/domains'
+        r = connection.paginated_request( path )
+        r['domains'].each do |domain_hash|
+          domains << new( connection, domain_hash['id'], domain_hash['name'] )
+        end
+      end
+      return domains
+    end
+    # ------------------------------------------------------------- find_by_name
+    def self.find_by_name( name, connection = nil )
+      domains = find_all_by_name( name, connection )
+      if domains.length <= 1
+        return domains.first
+      else
+        raise 'Not exact match.'
+      end
+    end
+    # --------------------------------------------------------------------- list
+    def self.list( connection = nil )
+      connection ||= CloudServers::Connection.find_connection!
+      domains = []
+      connection.dns_paths do |path|
+        path.path += '/domains'
+        r = connection.paginated_request( path )
+        r['domains'].each do |domain_hash|
+          domains << new( connection, domain_hash['id'], domain_hash['name'] )
+        end
+      end
+      return domains
     end
     # --------------------------------------------------------------------- save
     def save
@@ -53,8 +87,14 @@ class CloudServers::Dns
     def create
       #data = to_json
       #validate_records( records )
-      r = @connection.csreq( 'POST', API_SERVER, "#{@connection.svrmgmtpath}/domains.json", @connection.svrmgmtport, @connection.svrmgmtscheme, { 'content-type' => 'application/json' }, to_json_as_array )
-      @connection.handle_results( r )
+      p = @connection.dns_paths.first
+      r = @connection.csreq( 'POST', p.host, p.path + "/domains", p.port, p.scheme, { }, to_json_as_array )
+      result = @connection.handle_results( r )
+      if result.is_a?( CloudServers::AsynchronousJob )
+        result =result.wait_for_results( 2 )
+      end
+      created_domain_hash = result['response']['domains'].find{ |x| x['name'] == name }
+      @id = created_domain_hash['id']
     end
 
     # ------------------------------------------------------------------- update
@@ -62,7 +102,8 @@ class CloudServers::Dns
       if @records_changed
         raise "API limitations prevent record modification.  Please remove and recreate the domain."
       end
-      r = @connection.csreq( 'PUT', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}.json", @connection.svrmgmtport, @connection.svrmgmtscheme, { 'content-type' => 'application/json' }, to_json )
+      p = @connection.dns_paths.first
+      r = @connection.csreq( 'PUT', p.host, p.path + "/domains/#{id}.json", p.port, p.scheme, {}, to_json )
       @connection.handle_results( r )
     end
       
@@ -86,8 +127,10 @@ class CloudServers::Dns
 
     # ------------------------------------------------------------------ details
     def details
+      return {} if id.nil?
       @details ||= begin
-        r = @connection.csreq( 'GET', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}.json", @connection.svrmgmtport, @connection.svrmgmtscheme )
+        path = @connection.dns_paths.first
+        r = @connection.csreq( 'GET', path.host, path.path + "/domains/#{id}", path.port, path.scheme )
         data = @connection.handle_results( r )
         if data.is_a?( CloudServers::AsynchronousJob )
           data = wait_for_results
@@ -113,10 +156,12 @@ class CloudServers::Dns
 
     # ------------------------------------------------------------------ delete!
     def delete!
-      r = @connection.csreq( 'DELETE', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}.json", @connection.svrmgmtport, @connection.svrmgmtscheme )
+      raise "Missing required data!" if id.nil?
+      p = @connection.dns_paths.first
+      r = @connection.csreq( 'DELETE', p.host, p.path + "/domains/#{id}", p.port, p.scheme )
       data = @connection.handle_results( r ) do
-        details.delete( 'id' )
         @id = nil
+        @details.delete( 'id' ) if @details
         freeze
       end
     end
@@ -127,8 +172,9 @@ class CloudServers::Dns
     end
     # --------------------------------------------------------------- add_record
     def add_record!( record )
-      r = @connection.csreq( 'POST', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}/records", @connection.svrmgmtport, @connection.svrmgmtscheme,
-          { 'content-type' => 'application/json' }, JSON.generate( { 'records' => [record] } ) )
+      p = @connection.dns_paths.first
+      r = @connection.csreq( 'POST', p.host, p.path + "/domains/#{id}/records", p.port, p.scheme,
+          {}, JSON.generate( { 'records' => [record] } ) )
       result = @connection.handle_results( r ) do
         records << record
       end
@@ -138,7 +184,8 @@ class CloudServers::Dns
     end
     # ----------------------------------------------------------- remove_record!
     def remove_record!( record_id )
-      r = @connection.csreq( 'DELETE', API_SERVER, "#{@connection.svrmgmtpath}/domains/#{id}/records/#{record_id}", @connection.svrmgmtport, @connection.svrmgmtscheme, { 'content-type' => 'application/json' } )
+      p = @connection.dns_paths.first
+      r = @connection.csreq( 'DELETE', p.host, p.path + "/domains/#{id}/records/#{record_id}", p.port, p.scheme )
 
       @connection.handle_results( r ) do
         records.reject!{ |x| x['id'] == record_id }
@@ -161,20 +208,21 @@ class CloudServers::Dns
     def new_record?
       details['id'].nil?
     end
+    # --------------------------------------------------------- to_json_as_array
     def to_json_as_array
       adjusted_records = records.map do |record|
         %w( id updated created ).each do |bad_key|
           record.delete( bad_key )
         end
         if record['ttl'].nil?
-          record['ttl'] = 300
+          record['ttl'] = @ttl || 300
         end
         record
       end
       adjusted_records = adjusted_records.find_all do |record|
         record['type'] != 'NS'
       end
-      data = {"emailAddress" => email_address, 'ttl' => 300, "recordsList" => { "records" => adjusted_records } }
+      data = {"emailAddress" => email_address, 'ttl' => @ttl || 300, "recordsList" => { "records" => adjusted_records } }
       if new_record?
         data['name'] = name
       else
@@ -250,7 +298,7 @@ private
     xml.to_xml
   end
 
-  def build_json( domain, records, email, ttl )
+  def build_json( domain, records, email, ttl = 300 )
     data = { :domains => { :domain => [{ :name => domain, :records => records, :emailAddress => email }]}}
     JSON.generate( data  )
   end

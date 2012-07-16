@@ -91,6 +91,7 @@ module CloudServers
       @authok
     end
 
+    # ----------------------------------------------------------- handle_results
     def handle_results( results, &success_block )
       if results.code.to_i == 200
         yield if block_given?
@@ -174,6 +175,19 @@ module CloudServers
           if block_given?
             yield u, lb['region']
           end
+        end
+      end
+      return r_val
+    end
+    # ---------------------------------------------------------------- dns_paths
+    def dns_paths
+      requested_region ||= region
+      r_val = []
+      service_catalog['cloudDNS'].each do |lb|
+        u = URI.parse( lb['publicURL'] )
+        r_val << u
+        if block_given?
+          yield u
         end
       end
       return r_val
