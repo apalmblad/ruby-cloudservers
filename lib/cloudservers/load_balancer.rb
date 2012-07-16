@@ -22,6 +22,10 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     raise "Invalid algorithm: #{a}!" unless ALLOWED_ALGORITHMS.include?( a )
     @algorithm = a
   end
+  # ----------------------------------------------------------- wait_until_ready
+  def wait_until_ready( sleep_time = 10 )
+    sleep sleep_time while details['loadBalancer']['status'] == 'PENDING_UPDATE'
+  end
   # ------------------------------------------------------------------ weighted?
   def weighted?
     ['WEIGHTED_LEAST_CONNECTIONS', 'WEIGHTED_ROUND_ROBIN'].include?( algorithm)
