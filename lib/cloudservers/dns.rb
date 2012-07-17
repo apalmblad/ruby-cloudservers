@@ -85,16 +85,16 @@ class CloudServers::Dns
     end
     # ------------------------------------------------------------------- create
     def create
-      #data = to_json
-      #validate_records( records )
       p = @connection.dns_paths.first
       r = @connection.csreq( 'POST', p.host, p.path + "/domains", p.port, p.scheme, { }, to_json_as_array )
       result = @connection.handle_results( r )
       if result.is_a?( CloudServers::AsynchronousJob )
-        result =result.wait_for_results( 2 )
+        result = result.wait_for_results( 2 )
       end
       created_domain_hash = result['response']['domains'].find{ |x| x['name'] == name }
       @id = created_domain_hash['id']
+    rescue CloudServers::Exception::JobFailure => ex
+      raise ex.sub_error
     end
 
     # ------------------------------------------------------------------- update

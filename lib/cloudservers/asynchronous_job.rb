@@ -45,8 +45,7 @@ class CloudServers::AsynchronousJob
       elsif result['status'] == ERROR_STATUS
         url = URI.parse( result['callbackUrl'] )
         r = @connection.csreq( 'GET', url.host, url.path + '?showDetails=true', url.port, url.scheme )
-        error_data = JSON.parse( r.response.body )
-        raise CloudServers::Exception::JobFailure.new( error_data['error']['message'] + error_data['error']['details'], error_data['code'], r.response.body )
+        raise CloudServers::Exception::JobFailure.new( CloudServers::Exception.from_job_result( r.response ), r.response.body )
       elsif result['status'] == COMPLETED_STATUS
         url = URI.parse( result['callbackUrl'] )
         r = @connection.csreq( 'GET', url.host, url.path + '?showDetails=true', url.port, url.scheme )

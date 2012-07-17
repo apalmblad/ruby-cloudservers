@@ -33,7 +33,7 @@ module CloudServers
         connection.authok = true
       else
         connection.authtoken = false
-        raise CloudServers::Exception::Authentication, "Authentication failed with response code #{response.code}"
+        raise CloudServers::Exception::Authentication.new( "Authentication failed!", response.code, response.body )
       end
       server.finish
     end

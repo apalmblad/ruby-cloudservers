@@ -52,8 +52,8 @@ module CloudServers
     #
     #   cf = CloudServers::Connection.new(:username => 'YOUR_USERNAME', :api_key => 'YOUR_API_KEY')
     def initialize(options = {:retry_auth => true}) 
-      @authuser = options[:username] || (raise Exception::Authentication, "Must supply a :username")
-      @authkey = options[:api_key] || (raise Exception::Authentication, "Must supply an :api_key")
+      @authuser = options[:username] || (raise Exception::MissingArgument, "Must supply a :username")
+      @authkey = options[:api_key] || (raise Exception::MissingArgument, "Must supply an :api_key")
       @auth_url = options[:auth_url] || @auth_url = CloudServers::AUTH_USA
 
       auth_uri=nil
