@@ -42,11 +42,17 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   # -------------------------------------------------------------------- stats
   def stats
     r = make_request( 'GET', "/loadbalancers/#{id}/stats" )
+    unless r.code =~ /20\d/
+      CloudServers::Exception.raise_exception( r )
+    end
     JSON.parse( r.body )
   end
   # -------------------------------------------------------------------- details
   def details
     r = make_request( 'GET', "/loadbalancers/#{id}" )
+    unless r.code =~ /20\d/
+      CloudServers::Exception.raise_exception( r )
+    end
     JSON.parse( r.body )
   end
   # ---------------------------------------------------------------------- nodes
