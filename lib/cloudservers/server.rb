@@ -7,11 +7,11 @@ module CloudServers
     attr_reader   :progress
     attr_reader   :addresses
     attr_reader   :metadata
-    attr_reader   :hostId
-    attr_reader   :imageId
-    attr_reader   :flavorId
+    attr_reader   :host_id
+    attr_reader   :image_id
+    attr_reader   :flavor_id
     attr_reader   :metadata
-    attr_accessor :adminPass
+    attr_accessor :admin_pass
     
     # This class is the representation of a single Cloud Server object.  The constructor finds the server identified by the specified
     # ID number, accesses the API via the populate method to get information about that server, and returns the object.
@@ -22,15 +22,74 @@ module CloudServers
     #   => #<CloudServers::Server:0x1014e5438 ....>
     #   >> server.name
     #   => "RenamedRubyTest"
-    def initialize(connection,id)
+    def initialize( connection, id, url, data = nil )
       @connection    = connection
       @id            = id
-      @svrmgmthost   = connection.svrmgmthost
-      @svrmgmtpath   = connection.svrmgmtpath
-      @svrmgmtport   = connection.svrmgmtport
-      @svrmgmtscheme = connection.svrmgmtscheme
-      populate
-      return self
+      @url = url
+      populate_with_hash( data ) if data
+    end
+    # ------------------------------------------------------------------- create
+    def self.create( name, flavor, image, zone, connection = nil )
+      data = { :name => name, :flavorRef => flavor.id, :imageRef  => image.id }
+      connection ||= CloudServers::Connection.find_connection!
+      path = connection.server_paths( zone ).first
+      server_data = JSON.generate( :server => data )
+      r = connection.csreq( 'POST', path.host, path.path, path.port, path.scheme, {}, server_data )
+      puts r.inspect
+      puts r.body
+      response = JSON.parse( r.body )['server']
+      l = URI.parse( response['links'].find{|x| x['rel'] == 'self'}['href'])
+      new( connection, response['id'], l, response )
+    end
+    # -------------------------------------------------------------------- wait!
+    def wait!( desired_status = 'ACTIVE', sleep_time = 20 )
+      loop do
+        refresh
+        if self.status == desired_status
+          break
+        else
+          yield( self ) if block_given?
+          sleep( sleep_time )
+        end
+      end
+    end
+    # ----------------------------------------------------------------- destroy!
+    def destroy!( connection = nil )
+      r = @connection.csreq( 'DELETE', @url.host, @url.path, @url.port, @url.scheme )
+    end
+
+    # --------------------------------------------------------------------- list
+    def self.list( options = {}, connection = nil )
+      connection ||= CloudServers::Connection.find_connection!
+      servers = []
+      connection.server_paths( options[:region] ) do |path|
+        has_params = false
+        [:name, :server, :status, :type].each do |x|
+          next unless options[x]
+          has_params = true
+          param = "#{x}=#{options[x]}"
+          if path.query
+            path.query = [path.query, param ].join( '&' )
+          else
+            path.query = param
+          end
+        end
+        r = connection.paginated_request( path )
+        r['servers'].each do |data|
+          if !block_given? || yield( data )
+            link = if data['links']
+              URI.parse( data['links'].first['href'] )
+            else
+              if has_params
+                next unless options[:name].nil? || options[:name] == data['name']
+              end
+              x = URI.parse( path.to_s + "/#{data['id']}" )
+            end
+            servers << new( connection, data['id'], link, data )
+          end
+        end
+      end
+      return servers
     end
     
     # Makes the actual API call to get information about the given server object.  If you are attempting to track the status or project of
@@ -41,21 +100,30 @@ module CloudServers
     #
     #  >> server.refresh
     #  => true
+    # ----------------------------------------------------------------- populate
     def populate
-      response = @connection.csreq("GET",@svrmgmthost,"#{@svrmgmtpath}/servers/#{URI.encode(@id.to_s)}",@svrmgmtport,@svrmgmtscheme)
+      response = @connection.csreq( "GET", @url.host, @url.path, @url.port, @url.scheme )
       CloudServers::Exception.raise_exception(response) unless response.code.match(/^20.$/)
       data = JSON.parse(response.body)["server"]
       @id        = data["id"]
+      populate_with_hash( data )
+      true
+    end
+
+    # ------------------------------------------------------- populate_with_hash
+    def populate_with_hash( data )
       @name      = data["name"]
       @status    = data["status"]
+      @admin_pass    = data["adminPass"]
       @progress  = data["progress"]
-      @addresses = CloudServers.symbolize_keys(data["addresses"])
+      if data['addresses'] 
+        @addresses = CloudServers.symbolize_keys(data["addresses"])
+      end
       @metadata  = data["metadata"]
-      @hostId    = data["hostId"]
-      @imageId   = data["imageId"]
-      @flavorId  = data["flavorId"]
+      @host_id    = data["hostId"]
+      @image_id   = data["imageId"]
+      @flavor_id  = data["flavorId"]
       @metadata  = data["metadata"]
-      true
     end
     alias :refresh :populate
     

@@ -17,14 +17,29 @@ module CloudServers
     #   => #<CloudServers::Flavor:0x1014f8bc8 @name="256 server", @disk=10, @id=1, @ram=256>
     #   >> flavor.name
     #   => "256 server"
-    def initialize(connection,id)
-      response = connection.csreq("GET",connection.svrmgmthost,"#{connection.svrmgmtpath}/flavors/#{URI.escape(id.to_s)}",connection.svrmgmtport,connection.svrmgmtscheme)
+    def initialize( connection, id, link )
+      response = connection.csreq( "GET", link.host, link.path, link.port, link.scheme )
       CloudServers::Exception.raise_exception(response) unless response.code.match(/^20.$/)
       data = JSON.parse(response.body)['flavor']
       @id   = data['id']
       @name = data['name']
       @ram  = data['ram']
       @disk = data['disk']
+    end
+    # --------------------------------------------------------------------- list
+    def self.list( options = {}, connection = nil )
+      connection ||= CloudServers::Connection.find_connection!
+      flavors = []
+      connection.flavor_paths( options[:region] ) do |path|
+        r = connection.paginated_request( path )
+        r['flavors'].each do |data|
+          if !block_given? || yield( data )
+            link = data['links'].find{ |x| x['rel'] == 'self' }['href']
+            flavors << new( connection, data['id'], URI.parse( link ) )
+          end
+        end
+      end
+      return flavors
     end
     
   end

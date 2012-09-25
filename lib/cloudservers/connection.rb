@@ -206,8 +206,48 @@ module CloudServers
       end
       return r_val
     end
+    # ------------------------------------------------------------- server_paths
+    def flavor_paths( region = nil )
+      r_val = []
+      service_catalog['cloudServersOpenStack'].each do |s|
+        u = URI.parse( s['publicURL'] + '/flavors' )
+        r_val << u
+        if block_given?
+          yield u
+        end
+      end
+      return r_val
+    end
+    # -------------------------------------------------------------- image_paths
+    def image_paths( region = nil )
+      r_val = []
+      (service_catalog['cloudServersOpenStack'] +service_catalog['cloudServers'] ) .each do |s|
+        if region.nil? || region == s['region']
+          u = URI.parse( s['publicURL'] + '/images' )
+          r_val << u
+          if block_given?
+            yield u
+          end
+        end
+      end
+      return r_val
+    end
+    # ------------------------------------------------------------- server_paths
+    def server_paths( region = nil )
+      r_val = []
+      (service_catalog['cloudServersOpenStack'] + service_catalog['cloudServers'] ) .each do |s|
+        if region.nil? || region == s['region']
+          u = URI.parse( s['publicURL'] + '/servers' )
+          r_val << u
+          if block_given?
+            yield u
+          end
+        end
+      end
+      return r_val
+    end
     # ---------------------------------------------------------------- dns_paths
-    def dns_paths
+    def dns_paths( requested_region = nil )
       requested_region ||= region
       r_val = []
       service_catalog['cloudDNS'].each do |lb|
