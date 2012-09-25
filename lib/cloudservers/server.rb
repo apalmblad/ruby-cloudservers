@@ -107,6 +107,7 @@ module CloudServers
       data = JSON.parse(response.body)["server"]
       @id        = data["id"]
       populate_with_hash( data )
+      @populated = true
       true
     end
 
@@ -126,6 +127,14 @@ module CloudServers
       @metadata  = data["metadata"]
     end
     alias :refresh :populate
+    [ :progress, :addresses, :metadata, :host_id, :image_id, :flavor_id].each do |field|
+      class_eval <<-EOS
+        def #{field}
+          populate unless @populated
+          @#{field}
+        end
+      EOS
+    end
     
     # Returns a new CloudServers::Flavor object for the flavor assigned to this server.
     #
