@@ -35,8 +35,6 @@ module CloudServers
       path = connection.server_paths( zone ).first
       server_data = JSON.generate( :server => data )
       r = connection.csreq( 'POST', path.host, path.path, path.port, path.scheme, {}, server_data )
-      puts r.inspect
-      puts r.body
       response = JSON.parse( r.body )['server']
       l = URI.parse( response['links'].find{|x| x['rel'] == 'self'}['href'])
       new( connection, response['id'], l, response )
