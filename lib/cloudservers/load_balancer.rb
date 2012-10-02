@@ -1,36 +1,101 @@
 class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   attr_accessor :protocol
   attr_accessor :port
+  attr_accessor :is_public
   attr_reader :algorithm
   attr_reader :status
-  attr_reader :region
+  attr_accessor :region
   attr_reader :connection
 
   API_SERVER = 'dns.api.rackspacecloud.com'
   # ----------------------------------------------------------------- initialize
-  def initialize( connection, status, region )
+  def initialize( connection = nil, id = nil, url = nil, data = nil )
+    connection ||= CloudServers::Connection.find_connection!
     @connection = connection
     @status = status
     @region = region
+    @url = url
+    populate_with_hash( data ) if data
   end
-  def details
+  # --------------------------------------------------------- populate_with_hash
+  def populate_with_hash( data )
+    self.id = data['id'] unless id
+    self.name = data['name'] if data['name']
+    @protocol = data['protocol'] if data['protocol']
+    @port = data['port'] if data['port']
+    @algorithm = data['algorithm'] if data['algorithm']
+    @status = data['status'] if data['status']
+    if data['connectionLogging']
+      @connection_logging = data['connectionLogging']['enabled']
+    end
+  end
 
+
+  VALID_PROTOCOLS = {"DNS_TCP" => "53", "DNS_UDP" =>"53", "FTP" =>"21",
+    "HTTP" =>"80", "HTTPS" => "443", "IMAPS" => "993", "IMAPv4" => "143",
+    "LDAP" => "389", "LDAPS" => "636", "MYSQL" => "3306", "POP3" => "110",
+    "POP3S" => "995", "SMTP" => "25" , "TCP"  => "0", "TCP_CLIENT_FIRST" => "0",
+    "UDP"  => "0" , "UDP_STREAM"  => "0" , "SFTP"  => "22" }
+  # ------------------------------------------------------------------ protocol=
+  def protocol=( p )
+    p = p.upcase
+    if VALID_PROTOCOLS[p]
+      @protocol = p
+      @port = VALID_PROTOCOLS[p] if @port.nil?
+    end
   end
+  # --------------------------------------------------------------------- create
+  def create
+    raise "Missing protocol" if @protocol.nil?
+    raise "Missing name" if name.nil?
+    raise "No nodes!" if @nodes.nil? || @nodes.empty?
+    raise 'No Region!' if @region.nil?
+    data = {'name' => name, 'protocol' => @protocol, 'nodes' => @nodes,
+        'virtualIps' => [{'type' => (@is_public || @is_public.nil?) ? 'PUBLIC' : 'SERVICENET'}] }
+    r = make_request( 'POST', "/loadbalancers", {}, { 'loadBalancer' => data }.to_json)
+    details = JSON.parse( r.body )['loadBalancer']
+    self.id = details['id'].to_i
+    path = @connection.load_balancer_paths( region ).first
+    @url = URI.parse( "#{path.to_s}/loadbalancers/#{id}" )
+    populate_with_hash( details )
+  end
+
   ALLOWED_ALGORITHMS = 'RANDOM', 'WEIGHTED_LEAST_CONNECTIONS', 'WEIGHTED_ROUND_ROBIN'
   # ----------------------------------------------------------------- algorithm=
   def algorithm=( a )
     raise "Invalid algorithm: #{a}!" unless ALLOWED_ALGORITHMS.include?( a )
     @algorithm = a
   end
+  # ------------------------------------------------------------------- add_node
+  def add_node( address, port, type = nil, condition= 'ENABLED')
+    @nodes ||= []
+    data =  {  'address' => address,
+                            'port' => port,
+                            'type' => type || ( (id || @nodes.any? ) ? 'PRIMARY' : 'PRIMARY' ),
+                            'condition' => condition }
+    if id
+      make_request( 'POST', "/loadbalancers/#{id}/nodes", {}, { 'nodes' => [data] }.to_json)
+    else
+      @nodes << data
+    end
+  end
+  # --------------------------------------------------------------------- remove
+  def remove
+    r = @connection.csreq( 'DELETE', @url.host, @url.path, @url.port, @url.scheme )
+    CloudServers::Exception.raise_exception(r) unless r.code.match(/^20.$/)
+    true
+  end
   # ----------------------------------------------------------- wait_until_ready
   def wait_until_ready( sleep_time = 10 )
-    sleep sleep_time while details['loadBalancer']['status'] == 'PENDING_UPDATE'
+    while ['PENDING_UPDATE', 'BUILD'].include?( details['loadBalancer']['status']  )
+      sleep( sleep_time )
+    end
   end
   # ------------------------------------------------------------------ weighted?
   def weighted?
     ['WEIGHTED_LEAST_CONNECTIONS', 'WEIGHTED_ROUND_ROBIN'].include?( algorithm)
   end
-  # ------------------------------------ make_request( request_method, path_part
+  # --------------------------------------------------------------- make_request
   def make_request( request_method, path_part, headers = {}, data = nil )
     path = @connection.load_balancer_paths( region ).first
     r = @connection.csreq( request_method, path.host, "#{path.path}#{path_part}", path.port, path.scheme, headers, data )
@@ -80,10 +145,9 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
         body = JSON.parse( r.body )
         next if body['loadBalancers'].empty?
         body['loadBalancers'].each do |lb|
-          lb.delete( 'nodeCount' )
-          l = new( connection, lb.delete( 'status' ), region )
+          url =URI.parse( path.to_s + '/loadbalancers/' + lb['id'].to_s )
+          l = new( connection, lb.delete( 'id' ), url, lb )
           lb.delete( 'virtualIps' ).each { |x| l.virtual_ips << VirtualIp.from_hash( x ) }
-          l.attributes = lb
           load_balancers << l
         end
       else
@@ -122,11 +186,13 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     attr_reader :condition
     attr_reader :load_balancer
    
+    # --------------------------------------------------------------- initialize
     def initialize( load_balancer, status  )
       @load_balancer = load_balancer
       @status = status
     end
     VALID_TYPES = %w(PRIMARY SECONDARY)
+    # -------------------------------------------------------------------- type=
     def type=(t )
       raise "Invalid type: #{t}" unless VALID_TYPES.include?( t )
       @type = t
@@ -140,10 +206,12 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
       @weight = w
     end
     VALID_CONDITIONS = %w(ENABLED DISABLED DRAINING)
+    # --------------------------------------------------------------- condition=
     def condition=( c )
       raise "Invalid condition: #{c}" unless VALID_CONDITIONS.include?( c )
       @condition = c
     end
+    # ------------------------------------------------------------------ to_hash
     def to_hash
       r_val = {}
       r_val['condition'] = condition if condition
