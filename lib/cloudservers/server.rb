@@ -61,6 +61,7 @@ module CloudServers
       response = @connection.csreq( "POST", @url.host, @url.path + '/action', @url.port, @url.scheme, {}, data.to_json )
       if response.is_a?( Net::HTTPSuccess )
         @admin_pass = new_pass
+        refresh
       else
         CloudServers::Exception.raise_exception(response)
       end
