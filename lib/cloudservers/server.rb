@@ -51,6 +51,21 @@ module CloudServers
         end
       end
     end
+    # --------------------------------------------------------- change_password!
+    def change_password!( new_pass = nil )
+      if new_pass.nil?
+        o =  [('0'..'9'), ('a'..'z'),('A'..'Z')].map{|i| i.to_a}.flatten
+        new_pass = (0...15).map{ o[rand(o.length)] }.join;
+      end
+      data = { 'changePassword' => { 'adminPass' => new_pass } }
+      response = @connection.csreq( "POST", @url.host, @url.path + '/action', @url.port, @url.scheme, {}, data.to_json )
+      if response.is_a?( Net::HTTPSuccess )
+        @admin_pass = new_pass
+      else
+        CloudServers::Exception.raise_exception(response)
+      end
+      
+    end
     # ----------------------------------------------------------------- destroy!
     def destroy!( connection = nil )
       r = @connection.csreq( 'DELETE', @url.host, @url.path, @url.port, @url.scheme )
