@@ -9,18 +9,21 @@ class CloudServers::AsynchronousJob
     @call_back = URI.parse( call_back )
   end
 
+  # ------------------------------------------------------------------ from_json
   def self.from_json( conn, json )
     data = JSON.parse( json )
     #result = data['asyncResponse']
     result = data
     new( conn, result['jobId'], result['callbackUrl'] )
   end
+  # ---------------------------------------------------------------- successful?
   def successful?
     if @successful.nil?
       @successful = JSON.parse( @last_response.response.body )['status'] == COMPLETED_STATUS
     end
     return @successful 
   end
+  # ----------------------------------------------------------- wait_for_results
   def wait_for_results( sleep_time = 1 )
     while !done?
       sleep( sleep_time )
@@ -32,6 +35,7 @@ class CloudServers::AsynchronousJob
     end
   end
 
+  # ---------------------------------------------------------------------- done?
   def done?
     r = @connection.csreq( 'GET', @call_back.host, @call_back.path, @call_back.port, @call_back.scheme, { 'content-type' => 'application/json' } )
     if r.code.to_i == 202
