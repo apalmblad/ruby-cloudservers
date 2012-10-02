@@ -126,18 +126,17 @@ module CloudServers
 
     # ------------------------------------------------------- populate_with_hash
     def populate_with_hash( data )
-      @name      = data["name"]
-      @status    = data["status"]
-      @admin_pass    = data["adminPass"]
-      @progress  = data["progress"]
+      @name      = data["name"] if data['name']
+      @status    = data["status"] if data['status']
+      @admin_pass    = data["adminPass"] if data['adminPass']
+      @progress  = data["progress"] if data['progress']
       if data['addresses'] 
         @addresses = CloudServers.symbolize_keys(data["addresses"])
       end
-      @metadata  = data["metadata"]
-      @host_id    = data["hostId"]
-      @image_id   = data["imageId"]
-      @flavor_id  = data["flavorId"]
-      @metadata  = data["metadata"]
+      @metadata  = data["metadata"] if data['metadata']
+      @host_id    = data["hostId"] if data['hostId']
+      @image_id   = data["imageId"] if data['imageId']
+      @flavor_id  = data["flavorId"] if data['flavorId']
     end
     alias :refresh :populate
     [ :progress, :addresses, :metadata, :host_id, :image_id, :flavor_id].each do |field|
