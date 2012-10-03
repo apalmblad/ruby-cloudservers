@@ -13,9 +13,19 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     connection ||= CloudServers::Connection.find_connection!
     @connection = connection
     @status = status
-    @region = region
     @url = url
+    if @url
+      @region = @url.host[0..2].upcase
+    end
+    self.id = id
     populate_with_hash( data ) if data
+  end
+  # ---------------------------------------------------------------------- nodes
+  def nodes
+    if @nodes.nil?
+      details
+    end
+    @nodes
   end
   # --------------------------------------------------------- populate_with_hash
   def populate_with_hash( data )
@@ -27,6 +37,11 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     @status = data['status'] if data['status']
     if data['connectionLogging']
       @connection_logging = data['connectionLogging']['enabled']
+    end
+    if data['nodes']
+      @nodes = data['nodes'].map do |x|
+        Node.new( self, x['status'], x )
+      end 
     end
   end
 
@@ -75,6 +90,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
                             'condition' => condition }
     if id
       make_request( 'POST', "/loadbalancers/#{id}/nodes", {}, { 'nodes' => [data] }.to_json)
+      details
     else
       @nodes << data
     end
@@ -87,8 +103,9 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   end
   # ----------------------------------------------------------- wait_until_ready
   def wait_until_ready( sleep_time = 10 )
-    while ['PENDING_UPDATE', 'BUILD'].include?( details['loadBalancer']['status']  )
+    while ['PENDING_UPDATE', 'BUILD'].include?( status  )
       sleep( sleep_time )
+      details
     end
   end
   # ------------------------------------------------------------------ weighted?
@@ -118,21 +135,23 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     unless r.code =~ /20\d/
       CloudServers::Exception.raise_exception( r )
     end
-    JSON.parse( r.body )
+    data = JSON.parse( r.body )
+    populate_with_hash( data['loadBalancer'] )
+    return data
   end
   # ---------------------------------------------------------------------- nodes
-  def nodes
-    @nodes ||= begin
-      r = make_request( 'GET', "/loadbalancers/#{id}/nodes" )
-      body = JSON.parse( r.body )
-      body['nodes'].map do |node|
-        n = Node.new( self, node.delete( 'status' ) )
-        n.attributes= node
-        n
-      end
-    end
-    
-  end
+  #def nodes
+  #  @nodes ||= begin
+  #    r = make_request( 'GET', "/loadbalancers/#{id}/nodes" )
+  #    body = JSON.parse( r.body )
+  #     body['nodes'].map do |node|
+  #      n = Node.new( self, node.delete( 'status' ) )
+  #      n.attributes= node
+  #      n
+  #    end
+  #  end
+  #  
+  #end
 
   # ----------------------------------------------------------------------- list
   def self.list( connection = nil )
@@ -187,10 +206,20 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     attr_reader :load_balancer
    
     # --------------------------------------------------------------- initialize
-    def initialize( load_balancer, status  )
+    def initialize( load_balancer, status, data = nil  )
       @load_balancer = load_balancer
       @status = status
+      populate_from_hash( data) if data
     end
+    # ------------------------------------------------------- populate_from_hash
+    def populate_from_hash( data )
+      self.id = data['id'] if data['id']
+      self.address = data['address'] if data['address']
+      self.port =data['port'] if data['port']
+      self.condition = data['condition'] if data['condition']
+      @status = data['status'] if data['status']
+    end
+
     VALID_TYPES = %w(PRIMARY SECONDARY)
     # -------------------------------------------------------------------- type=
     def type=(t )
