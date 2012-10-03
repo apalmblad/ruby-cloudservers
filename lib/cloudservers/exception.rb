@@ -99,7 +99,11 @@ module CloudServers
     def self.raise_exception(response)
       return if response.code =~ /^20.$/
       begin
-        data = JSON.parse( response.body )
+        begin
+          data = JSON.parse( response.body )
+        rescue JSON::ParserError
+          data = response.body
+        end
         ex_class = CODE_MAP[data['code']]
         ex_class ||= CloudServers::Exception::Other
         raise CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
