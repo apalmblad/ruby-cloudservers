@@ -86,7 +86,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     @nodes ||= []
     data =  {  'address' => address,
                             'port' => port,
-                            'type' => type || ( (id || @nodes.any? ) ? 'PRIMARY' : 'PRIMARY' ),
+                            'type' => type || 'PRIMARY',
                             'condition' => condition }
     if id
       make_request( 'POST', "/loadbalancers/#{id}/nodes", {}, { 'nodes' => [data] }.to_json)
