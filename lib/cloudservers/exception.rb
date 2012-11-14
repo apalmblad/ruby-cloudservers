@@ -49,7 +49,7 @@ module CloudServers
       def initialize( sub_error, response_body)
         @sub_error = sub_error
         @respose_body = response_body
-        super( "Asynchronous Request Failure: #{sub_error.message}", 500,, response_body)
+        super( "Asynchronous Request Failure: #{sub_error.message}", 500, response_body)
       end
 
       # ---------------------------------------------------------- response_code
