@@ -139,6 +139,29 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     populate_with_hash( data['loadBalancer'] )
     return data
   end
+  # ------------------------------------------------------------------- block_ip
+  def block_ip( ip_addr )
+    payload = { 'accessList' => [ { 'address' => ip_addr, 'type' => 'DENY' } ] }
+    r = make_request( 'POST', "/loadbalancers/#{id}/accesslist", {}, payload.to_json )
+  end
+  # ----------------------------------------------------------------- unblock_ip
+  def unblock_ip( ip_addr )
+    to_unblock = blocked_ips.find{ |x| x['address'] == ip_addr }
+    if to_unblock && to_unblock['id']
+      make_request( 'DELETE', "/loadbalancers/#{id}/accesslist/#{to_unblock['id']}" )
+    end
+  end
+  # ---------------------------------------------------------------- blocked_ips
+  def blocked_ips
+    access_list.find_all{ |x| x['type'] == 'DENY' }
+  end
+  # ---------------------------------------------------------------- access_list
+  def access_list
+    r = make_request( 'GET', "/loadbalancers/#{id}/accesslist" )
+    CloudServers::Exception.raise_exception( r ) unless r.code =~ /20\d/
+    data = JSON.parse( r.body )
+    return data['accessList'] || []
+  end
   # ---------------------------------------------------------------------- nodes
   #def nodes
   #  @nodes ||= begin

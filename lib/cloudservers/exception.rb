@@ -78,7 +78,7 @@ module CloudServers
     end
     class DuplicateObject                  < CloudServersError # :nodoc:
     end
-    class LoadBalancerNotReady < StandardError
+    class LoadBalancerNotReady < CloudServersError
     end
     CODE_MAP = { 422 => LoadBalancerNotReady, 409 => DuplicateObject }
         
@@ -96,7 +96,7 @@ module CloudServers
       return ex_class.new( error['message'], error['code'], error.to_json)
     end
     # ---------------------------------------------------------- raise_exception
-    def self.raise_exception(response)
+    def self.raise_exception( response )
       return if response.code =~ /^20.$/
       begin
         begin
@@ -106,7 +106,7 @@ module CloudServers
         end
         ex_class = CODE_MAP[data['code']]
         ex_class ||= CloudServers::Exception::Other
-        raise CloudServers::Exception::Other.new("The server returned status #{response.code}", response.code, response.body)
+        raise ex_class.new("The server returned status #{response.code}", response.code, response.body)
       end
     end
     
