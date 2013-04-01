@@ -154,12 +154,15 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     ip_list = ip_list.map{ |x| { 'address' => x, 'type' => 'DENY' } }
     payload = { 'accessList' => ip_list }
     r = make_request( 'POST', "/loadbalancers/#{id}/accesslist", {}, payload.to_json )
+    @status = 'PENDING_UPDATE'
+    r
   end
   # ----------------------------------------------------------------- unblock_ip
   def unblock_ip( ip_addr )
     to_unblock = blocked_ips.find{ |x| x['address'] == ip_addr }
     if to_unblock && to_unblock['id']
       make_request( 'DELETE', "/loadbalancers/#{id}/accesslist/#{to_unblock['id']}" )
+      @status = 'PENDING_UPDATE'
     end
   end
   # ----------------------------------------------------------------- unblock_ip
@@ -167,6 +170,7 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
     id_list.each_slice( 10 ) do |ids|
       list = ids.map{ |x| "id=#{x}" }.join('&')
       make_request( 'DELETE', "/loadbalancers/#{id}/accesslist?#{list}" )
+      @status = 'PENDING_UPDATE'
       wait_until_ready( 5 )
     end
   end
