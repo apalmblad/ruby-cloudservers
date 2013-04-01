@@ -2,7 +2,7 @@ require './lib/cloudservers/version'
 
 Gem::Specification.new do |s|
   s.name = %q{cloudservers}
-  s.version = CloudServers::VERSION
+  #s.version = CloudServers::VERSION
 
   s.required_rubygems_version = Gem::Requirement.new(">= 0") if s.respond_to? :required_rubygems_version=
   s.authors = ["H. Wade Minter", "Mike Mayo", "Dan Prince"]
