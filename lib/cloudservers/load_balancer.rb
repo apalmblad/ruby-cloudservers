@@ -85,9 +85,9 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   def add_node( address, port, type = nil, condition= 'ENABLED')
     @nodes ||= []
     data =  {  'address' => address,
-                            'port' => port,
-                            'type' => type || 'PRIMARY',
-                            'condition' => condition }
+               'port' => port,
+               'type' => type || 'PRIMARY',
+               'condition' => condition }
     if id
       make_request( 'POST', "/loadbalancers/#{id}/nodes", {}, { 'nodes' => [data] }.to_json)
       details
@@ -115,7 +115,13 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   # --------------------------------------------------------------- make_request
   def make_request( request_method, path_part, headers = {}, data = nil )
     path = @connection.load_balancer_paths( region ).first
-    r = @connection.csreq( request_method, path.host, "#{path.path}#{path_part}", path.port, path.scheme, headers, data )
+    r = @connection.csreq( request_method,
+                           path.host,
+                           "#{path.path}#{path_part}",
+                           path.port,
+                           path.scheme,
+                           headers,
+                           data )
     unless r.code =~ /20\d/
       CloudServers::Exception.raise_exception( r )
     end
