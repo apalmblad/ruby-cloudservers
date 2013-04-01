@@ -151,7 +151,8 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   end
   # ------------------------------------------------------------------ block_ips
   def block_ips( ip_list )
-    payload = { 'accessList' => ip_list.map{ |x| { 'address' => x, 'type' => 'DENY' } }
+    ip_list = ip_list.map{ |x| { 'address' => x, 'type' => 'DENY' } }
+    payload = { 'accessList' => ip_list }
     r = make_request( 'POST', "/loadbalancers/#{id}/accesslist", {}, payload.to_json )
   end
   # ----------------------------------------------------------------- unblock_ip
