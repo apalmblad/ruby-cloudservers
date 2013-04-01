@@ -162,6 +162,11 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
       make_request( 'DELETE', "/loadbalancers/#{id}/accesslist/#{to_unblock['id']}" )
     end
   end
+  # ----------------------------------------------------------------- unblock_ip
+  def unblock_acl_ids( id_list )
+    id_list = id_list.map{ |x| "id=#{x}" }.join('&')
+    make_request( 'DELETE', "/loadbalancers/#{id}/accesslist?#{id_list}" )
+  end
   # ---------------------------------------------------------------- blocked_ips
   def blocked_ips
     access_list.find_all{ |x| x['type'] == 'DENY' }
