@@ -191,6 +191,21 @@ module CloudServers
     #   => [{:name=>"demo-standingcloud-lts", :id=>168867}, 
     #       {:name=>"demo-aicache1", :id=>187853}]
     #
+    # ------------------------------------------------------------- volume_paths
+    def volume_paths( request_region = nil )
+      requested_region ||= region
+      r_val = []
+      service_catalog['cloudBlockStorage'].each do |lb|
+        if requested_region.nil? || requested_region == lb['region']
+          u = URI.parse( lb['publicURL'] )
+          r_val << u
+          if block_given?
+            yield u, lb['region']
+          end
+        end
+      end
+      return r_val
+    end
     # ------------------------------------------------------ load_balancer_paths
     def load_balancer_paths( requested_region = nil )
       requested_region ||= region
