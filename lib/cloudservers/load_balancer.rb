@@ -122,8 +122,12 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
                            path.scheme,
                            headers,
                            data )
-    unless r.code =~ /20\d/
-      CloudServers::Exception.raise_exception( r )
+    if block_given?
+      yield r
+    else
+      unless r.code =~ /20\d/
+        CloudServers::Exception.raise_exception( r )
+      end
     end
     return r
   end
@@ -153,7 +157,20 @@ class CloudServers::LoadBalancer < Struct.new( :name, :id, :created, :updated )
   def block_ips( ip_list )
     ip_list = ip_list.map{ |x| { 'address' => x, 'type' => 'DENY' } }
     payload = { 'accessList' => ip_list }
-    r = make_request( 'POST', "/loadbalancers/#{id}/accesslist", {}, payload.to_json )
+    r = make_request( 'POST', "/loadbalancers/#{id}/accesslist", {}, payload.to_json ) do |response|
+      if response.code !~ /20\d/
+        if response.code.to_i === 400
+          data = JSON.parse( response.body )
+          if data['message'] == "Access list size must not exceed 100 items."
+            raise CloudServers::Exception::ACLTooBig.new( data['message'], response.code, response.body )
+          else
+            CloudServers::Exception.raise_exception( response )
+          end
+        else
+          CloudServers::Exception.raise_exception( response )
+        end
+      end
+    end
     @status = 'PENDING_UPDATE'
     r
   end

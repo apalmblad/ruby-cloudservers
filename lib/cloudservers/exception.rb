@@ -62,6 +62,8 @@ module CloudServers
     
     class ExpiredAuthToken            < StandardError # :nodoc:
     end
+    class ACLTooBig < CloudServersError
+    end
     class MissingArgument             < StandardError # :nodoc:
     end
     class InvalidArgument             < StandardError # :nodoc:
