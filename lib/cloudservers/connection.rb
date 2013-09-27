@@ -105,7 +105,14 @@ module CloudServers
         raise CloudServers::Exception::ItemNotFound.new( "Domain was not found.", results.code, results.body )
       elsif results.code.to_i == 400
         d = JSON.parse( results.body )
-        error = d['validationErrors']['messages'].join(',')
+        if d['validationErrors']
+          error = d['validationErrors']['messages'].join(',')
+        else
+
+          error = d.map do |key|
+            "#{key} => #{d[key].inspect}"
+          end
+        end
         raise CloudServers::Exception::BadRequest.new( error, results.code, results.body )
       else
         CloudServers::Exception.raise_exception( results )
@@ -142,14 +149,16 @@ module CloudServers
     # This method actually makes the HTTP REST calls out to the server
     def csreq(method,server,path,port,scheme,headers = {},data = nil,attempts = 0) # :nodoc:
       start = Time.now
-      headers['Content-Type'] ||= 'application/json'
+      if data
+        headers['Content-Type'] ||= 'application/json'
+      end
       hdrhash = headerprep(headers)
       start_http(server,path,port,scheme,hdrhash)
       request = Net::HTTP.const_get(method.to_s.capitalize).new(path,hdrhash)
       request.body = data
       response = @http[server].request(request)
       raise CloudServers::Exception::ExpiredAuthToken if response.code == "401"
-      raise CloudServers::Exception::CloudServersFault.new( "Server fault!", response.code, response.body ) if response.code == "500"
+      raise CloudServers::Exception::CloudServersFault.new( "Server fault! / #{response.body}", response.code, response.body ) if response.code == "500"
       raise CloudServers::Exception::ServiceUnavailable.new( "Service Unavailable", response.code, response.body ) if response.code == "503"
       raise CloudServers::Exception::OverLimit.new( "Service Unavailable", response.code, response.body ) if response.code == "413"
       response
