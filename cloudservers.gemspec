@@ -1,5 +1,4 @@
-require './lib/cloudservers/version'
-
+require File.join(__dir__, 'lib/cloudservers/version')
 Gem::Specification.new do |s|
   s.name = %q{cloudservers}
   s.version = CloudServers::VERSION
